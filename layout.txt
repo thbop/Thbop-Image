@@ -1,7 +1,7 @@
 thbop
 [74][68][62][6F][70]
-argSize width height
-[01][FF][FF] ([02][FFFF][FFFF])
+width height
+[FFFFFFFF][FFFFFFFF]
 colorAmount colorTable
 [02]...[FF0000][123456]... (We can only have 256 different colors because I'm lazy)
 pixels
