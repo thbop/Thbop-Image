@@ -13,14 +13,14 @@ void PrintColor( Color color ) {
 }
 
 struct Image {
-    int
-        width, height,
-        paletteSize; // Amount of different colors
+    unsigned short
+        width, height;
+    unsigned char paletteSize; // Amount of different colors
     Color* palette;
     unsigned char* pixels; // Points to the bytes representing color pointers; len = width * height
 } typedef Image;
 
-Image GenerateImage( int width, int height, Color color ) {
+Image GenerateImage( unsigned short width, unsigned short height, Color color ) {
     Image img;
     img.width = width;
     img.height = height;
@@ -55,11 +55,13 @@ int ExportImage( Image img, unsigned char* fileName ) {
 
     // Metadata
     if (fwrite(thbop, sizeof(unsigned char), sizeof(thbop)-1, fp) != sizeof(thbop)-1 ||
-        fwrite(&img.width,  sizeof(int), 1, fp) != 1 ||
-        fwrite(&img.height, sizeof(int), 1, fp) != 1 )        { fclose(fp); return 1; }
+        fwrite(&img.width,  sizeof(unsigned short), 1, fp) != 1 ||
+        fwrite(&img.height, sizeof(unsigned short), 1, fp) != 1 ) { fclose(fp); return 1; }
 
     // Colors
-    if ( fwrite(img.palette, sizeof(Color), img.paletteSize, fp) != img.paletteSize ) { fclose(fp); return 2; }
+    if (fputc(img.paletteSize, fp) == EOF ||
+        fwrite(img.palette, sizeof(Color), img.paletteSize, fp) != img.paletteSize)
+        { fclose(fp); return 2; }
 
     // Pixels
     if ( fwrite(img.pixels, sizeof(unsigned char), img.width * img.height, fp) != img.width * img.height ) { fclose(fp); return 3; }
@@ -68,16 +70,55 @@ int ExportImage( Image img, unsigned char* fileName ) {
     return 0;
 }
 
+long int GetFileSize( FILE* fp ) {
+    fseek(fp, 0, SEEK_END);
+    long int size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    return size;
+}
+
+Image ImportImage( unsigned char* fileName ) {
+    FILE* fp = fopen( fileName, "rb" );
+    if (fp == NULL) {
+        printf( "ERROR: Could not open \"%s\"!", fileName );
+        return (Image){0};
+    }
+
+    Image img;
+    long int size = GetFileSize(fp);
+    fseek(fp, 5, SEEK_SET); // Ignore "thbop" header
+
+    if ( fread(&img.width,  sizeof(unsigned short), 1, fp) != 1 ) { fclose(fp); return (Image){0}; }
+    if ( fread(&img.height, sizeof(unsigned short), 1, fp) != 1 ) { fclose(fp); return (Image){0}; }
+
+    if ( fread(&img.paletteSize, sizeof(unsigned char), 1, fp) != 1 ) { fclose(fp); return (Image){0}; }
+
+    img.palette = (Color*)malloc( img.paletteSize * sizeof(Color) );
+    if ( fread(img.palette, sizeof(Color), img.paletteSize, fp) != img.paletteSize ) { fclose(fp); return (Image){0}; }
+
+    img.pixels = (unsigned char*)calloc( img.width * img.height, sizeof(unsigned char) );
+    if ( fread(img.pixels, sizeof(unsigned char), img.width * img.height, fp) != img.width * img.height ) { fclose(fp); return (Image){0}; }
+
+    
+
+    fclose(fp);
+    return img;
+}
+
 void UnloadImage( Image img ) {
-    free( img.palette );
-    free( img.pixels );
+    if ( img.palette != NULL ) free( img.palette );
+    if ( img.pixels  != NULL ) free( img.pixels  );
 }
 
 
 int main() {
-    Image img = GenerateImage( 100, 20, (Color){ 0xFF, 0, 0 } );
+    // Image img = GenerateImage( 100, 50, (Color){ 0xFF, 0x56, 0x45 } );
 
-    printf( "Error Code: %d\n", ExportImage( img, "test.ti" ) );
+    // printf( "Error Code: %d\n", ExportImage( img, "test.ti" ) );
+    // UnloadImage(img);
+    
+    Image img = ImportImage("test.ti");
+    printf( "Error Code: %d\n", ExportImage( img, "test2.ti" ) );
 
     UnloadImage(img);
 
