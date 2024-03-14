@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 
 struct Color {
@@ -22,7 +23,7 @@ struct Image {
     unsigned char* pixels; // Points to the bytes representing color pointers; len = width * height
 } typedef Image;
 
-Image GenerateImage( unsigned short width, unsigned short height, Color color ) {
+Image GenerateColorImage( unsigned short width, unsigned short height, Color color ) {
     Image img;
     img.width = width;
     img.height = height;
@@ -34,6 +35,46 @@ Image GenerateImage( unsigned short width, unsigned short height, Color color ) 
 
     // calloc sets all allocated memory to zero pointing to the first color.
     img.pixels = (unsigned char*)calloc( width * height, sizeof(unsigned char) );
+
+    return img;
+}
+
+double frac( double v ) {
+    return v - floor(v);
+}
+
+double WhiteNoise( int seed, int x, int y ) {
+    // Generates white noise at a given location
+    return frac( sin( x * 2458.234 + y * 2348.8985 ) * 3432.2543 * seed );
+}
+
+Color RandomColor( int seed, int x, int y ) {
+    return (Color){
+        floor(WhiteNoise( seed,   x, y ) * 255),
+        floor(WhiteNoise( seed+1, x, y ) * 255),
+        floor(WhiteNoise( seed+2, x, y ) * 255)
+    };
+}
+
+int RandomInt( int seed, int x, int y, int mn, int mx ) {
+    return floor(WhiteNoise(seed, x, y) * (mx-mn) + mn );
+}
+
+Image GenerateNoiseImage( unsigned short width, unsigned short height, unsigned char paletteSize ) {
+    Image img;
+    img.width = width;
+    img.height = height;
+
+    img.palette = (Color*)malloc( sizeof(Color) * paletteSize );
+    img.paletteSize = paletteSize;
+    for (unsigned char i = 0; i < paletteSize; i++)
+        img.palette[i] = RandomColor( 32, i, i+83 );
+    
+
+    // calloc sets all allocated memory to zero pointing to the first color.
+    img.pixels = (unsigned char*)calloc( width * height, sizeof(unsigned char) );
+    for ( int i = 0; i < img.width*img.height; i++ )
+        img.pixels[i] = (unsigned char)RandomInt(390, i, i+257, 0, paletteSize);
 
     return img;
 }
@@ -140,7 +181,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam ) {
 
             for ( unsigned short j = 0; j < img.height; j++ ) {
                 for ( unsigned short i = 0; i < img.width; i++ ) {
-                    SetPixel(hdc, i, j, ToWinColor(FetchColor( img, i, j )));
+                    SetPixel(hdc, i, j, ToWinColor(FetchColor(img, i, j)));
                 }
             }
 
@@ -156,7 +197,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam ) {
 
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow ) {
     // Load image
-    img = ImportImage( "test.ti" );
+    // img = GenerateNoiseImage( 500, 500, 100 );
+    // ExportImage(img, "image.ti");
+    img = ImportImage("image.ti");
 
 
     // Window class registration
@@ -198,5 +241,6 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
         DispatchMessage(&msg);
     }
 
+    UnloadImage(img);
     return (int)msg.wParam;
 }
