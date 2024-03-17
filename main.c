@@ -43,10 +43,16 @@ double frac( double v ) {
     return v - floor(v);
 }
 
+double lerp( double a, double b, double v ) {
+    return ( b - a ) * v + a;
+}
+
 double WhiteNoise( int seed, int x, int y ) {
     // Generates white noise at a given location
     return frac( sin( x * 2458.234 + y * 2348.8985 ) * 3432.2543 * seed );
 }
+
+
 
 Color RandomColor( int seed, int x, int y ) {
     return (Color){
@@ -199,7 +205,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
     // Load image
     // img = GenerateNoiseImage( 500, 500, 100 );
     // ExportImage(img, "image.ti");
-    img = ImportImage("image.ti");
+    img = ImportImage("t.ti");
 
 
     // Window class registration
